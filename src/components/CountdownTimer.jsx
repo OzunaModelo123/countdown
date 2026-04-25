@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import './CountdownTimer.css';
 
-export default function CountdownTimer({ targetDate, onComplete, onTick, onTimeUpdate }) {
+export default function CountdownTimer({ targetDate, onComplete, onTimeUpdate }) {
   const [timeLeft, setTimeLeft] = useState(() => calc(targetDate));
   const doneRef = useRef(false);
   const prevSecRef = useRef(null);
@@ -26,7 +26,6 @@ export default function CountdownTimer({ targetDate, onComplete, onTick, onTimeU
       if (onTimeUpdate) onTimeUpdate(tl, urgency);
       
       if (prevSecRef.current !== null && prevSecRef.current !== tl.totalSeconds) {
-        if (onTick) onTick();
         if (tl.totalSeconds === 86400) triggerMilestone("24 Hours Left!");
         if (tl.totalSeconds === 3600) triggerMilestone("1 Hour Left!");
         if (tl.totalSeconds === 60) triggerMilestone("60 Seconds!");
@@ -36,7 +35,7 @@ export default function CountdownTimer({ targetDate, onComplete, onTick, onTimeU
       if (tl.isComplete && !doneRef.current) { doneRef.current = true; if (onComplete) onComplete(); }
     }, 1000);
     return () => clearInterval(timer);
-  }, [targetDate, onComplete, onTick, onTimeUpdate]);
+  }, [targetDate, onComplete, onTimeUpdate]);
 
   const pad = (v) => String(v).padStart(2, '0');
 

@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import confetti from 'canvas-confetti';
 import { Flame, Zap } from 'lucide-react';
-import { playHype } from '../utils/sounds';
 import { generateHypeMessage } from '../utils/ai';
 import './HypeButton.css';
 
-export default function HypeButton({ accent, soundEnabled }) {
+export default function HypeButton({ accent }) {
   const [clicks, setClicks] = useState(0);
   const [jiggle, setJiggle] = useState(false);
   const [message, setMessage] = useState('');
@@ -22,12 +21,11 @@ export default function HypeButton({ accent, soundEnabled }) {
     };
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
-  }, [clicks, soundEnabled, accent]);
+  }, [clicks, accent]);
 
   const doHype = useCallback(() => {
     const n = clicks + 1;
     setClicks(n);
-    if (soundEnabled) playHype(n);
     setJiggle(true); setTimeout(() => setJiggle(false), 200);
 
     const colors = [accent || '#7c3aed', '#fff', '#06b6d4'];
@@ -43,7 +41,7 @@ export default function HypeButton({ accent, soundEnabled }) {
     setMessage(generateHypeMessage(n)); setShowMsg(true);
     if (comboTimer) clearTimeout(comboTimer);
     setComboTimer(setTimeout(() => setShowMsg(false), 3000));
-  }, [clicks, accent, soundEnabled, comboTimer]);
+  }, [clicks, accent, comboTimer]);
 
   const intensity = clicks >= 30 ? 'max' : clicks >= 15 ? 'high' : clicks >= 5 ? 'mid' : '';
 

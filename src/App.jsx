@@ -5,17 +5,21 @@ import FactLine from './components/FactLine';
 import HypeButton from './components/HypeButton';
 import Particles from './components/Particles';
 import CelebrationOverlay from './components/CelebrationOverlay';
-import { Pencil, Volume2, VolumeX } from 'lucide-react';
-import { playTick, playThemeComplete } from './utils/sounds';
+import { Pencil, Maximize, Minimize, Loader2 } from 'lucide-react';
 import { saveCountdown } from './utils/storage';
-import { detectThemeColors } from './utils/ai';
+import { useQuery } from "convex/react";
+import { api } from "../convex/_generated/api";
 import './index.css';
 
 function App() {
+  const params = new URLSearchParams(window.location.search);
+  const cloudId = params.get('id');
+  
+  // Fetch from cloud if ID exists
+  const cloudData = useQuery(api.countdowns.get, cloudId ? { id: cloudId } : "skip");
+
   const [config, setConfig] = useState(() => {
-    const params = new URLSearchParams(window.location.search);
-    
-    // Check for base64 compressed state
+    // Check for base64 compressed state (legacy support)
     const compressedState = params.get('s');
     if (compressedState) {
       try {
@@ -24,7 +28,6 @@ function App() {
           ...decoded,
           isKiosk: params.get('mode') === 'kiosk' || params.get('embed') === 'true',
           isEmbed: params.get('embed') === 'true',
-          soundEnabled: true,
         };
       } catch (e) {
         console.error("Failed to parse state", e);
@@ -40,7 +43,7 @@ function App() {
     const localISOTime = new Date(nextWeek - tzoffset).toISOString().slice(0, 16);
 
     return {
-      id: params.get('id') || `cd_${Date.now()}`,
+      id: cloudId || `cd_${Date.now()}`,
       title: params.get('title') || 'Next Big Event',
       date: params.get('date') || localISOTime,
       createdAt: params.get('createdAt') ? parseInt(params.get('createdAt')) : Date.now(),
@@ -53,14 +56,28 @@ function App() {
       },
       isKiosk: mode === 'kiosk' || isEmbed,
       isEmbed: isEmbed,
-      soundEnabled: true,
     };
   });
+
+  // Sync cloud data to local state
+  useEffect(() => {
+    if (cloudData) {
+      setConfig(prev => ({
+        ...prev,
+        ...cloudData,
+        id: cloudId,
+        isKiosk: params.get('mode') === 'kiosk' || params.get('embed') === 'true' || prev.isKiosk,
+        isEmbed: params.get('embed') === 'true' || prev.isEmbed,
+      }));
+      setIsLaunched(true);
+    }
+  }, [cloudData, cloudId]);
 
   const [isLaunched, setIsLaunched] = useState(config.isKiosk);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [timeLeft, setTimeLeft] = useState(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Apply dynamic colors to CSS
   useEffect(() => {
@@ -75,24 +92,41 @@ function App() {
     root.style.setProperty('--accent-glow-strong', hex + '8c');
   }, [config.colors]);
 
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch((err) => {
+        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
   // Keyboard shortcuts (only in countdown view)
   useEffect(() => {
     if (!isLaunched) return;
     const handleKey = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       if (e.key === 'e' || e.key === 'E') handleEdit();
-      if (e.key === 'm' || e.key === 'M') toggleSound();
+      if (e.key === 'f' || e.key === 'F') toggleFullscreen();
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [isLaunched]);
+  }, [isLaunched, toggleFullscreen]);
 
-  const toggleSound = useCallback(() => {
-    setConfig(prev => ({ ...prev, soundEnabled: !prev.soundEnabled }));
-  }, []);
-
-  const handleLaunch = useCallback(() => {
-    saveCountdown(config);
+  const handleLaunch = useCallback((newConfig) => {
+    const finalConfig = newConfig || config;
+    saveCountdown(finalConfig);
     setIsTransitioning(true);
     
     // Request notification permissions
@@ -100,7 +134,11 @@ function App() {
       Notification.requestPermission();
     }
 
-    setTimeout(() => { setIsLaunched(true); setIsTransitioning(false); }, 250);
+    setTimeout(() => { 
+      setIsLaunched(true); 
+      setIsTransitioning(false); 
+      if (newConfig) setConfig(newConfig);
+    }, 250);
   }, [config]);
 
   const handleEdit = useCallback(() => {
@@ -110,8 +148,6 @@ function App() {
 
   const handleComplete = useCallback(() => {
     setIsComplete(true);
-    if (config.soundEnabled) playThemeComplete('minimal');
-    
     // Fire Web Push Notification
     if ('Notification' in window && Notification.permission === 'granted') {
       new Notification('Countdown Complete!', {
@@ -119,11 +155,7 @@ function App() {
         icon: '/favicon.ico'
       });
     }
-  }, [config.soundEnabled, config.title]);
-
-  const handleTick = useCallback(() => {
-    if (config.soundEnabled) playTick();
-  }, [config.soundEnabled]);
+  }, [config.title]);
 
   const handleTimeUpdate = useCallback((tl, urgency) => {
     setTimeLeft(tl);
@@ -132,10 +164,17 @@ function App() {
     }
   }, []);
 
+  if (cloudId && cloudData === undefined) {
+    return (
+      <div className="loading-screen">
+        <Loader2 className="spin" size={48} />
+        <p>Fetching your moment...</p>
+      </div>
+    );
+  }
+
   return (
     <>
-
-
       <div className="app-shell">
         {!isLaunched ? (
           <div className={`view-frame ${isTransitioning ? 'exit' : ''}`} key="setup">
@@ -159,26 +198,32 @@ function App() {
               <CountdownTimer
                 targetDate={config.date}
                 onComplete={handleComplete}
-                onTick={handleTick}
                 onTimeUpdate={handleTimeUpdate}
               />
 
               {!config.isEmbed && <FactLine config={config} timeLeft={timeLeft} />}
-              {!config.isEmbed && <HypeButton accent={config.colors.accent} soundEnabled={config.soundEnabled} />}
+              {!config.isEmbed && <HypeButton accent={config.colors.accent} />}
             </div>
 
             {/* Bottom controls — clearly separated from content */}
-            {!config.isKiosk && (
+            {!config.isKiosk && !isFullscreen && (
               <div className="bottom-controls">
                 <button className="ctrl-btn" onClick={handleEdit}>
                   <Pencil size={14} />
                   <span className="ctrl-label">Edit</span>
                 </button>
-                <button className={`ctrl-btn ${config.soundEnabled ? 'active' : ''}`} onClick={toggleSound}>
-                  {config.soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
-                  <span className="ctrl-label">{config.soundEnabled ? 'Sound On' : 'Sound Off'}</span>
+                <button className={`ctrl-btn ${isFullscreen ? 'active' : ''}`} onClick={toggleFullscreen}>
+                  {isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />}
+                  <span className="ctrl-label">{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</span>
                 </button>
               </div>
+            )}
+            
+            {/* Provide a hidden exit button that appears when hovering top right in fullscreen */}
+            {!config.isKiosk && isFullscreen && (
+               <button className="exit-fullscreen-btn" onClick={toggleFullscreen} aria-label="Exit Fullscreen">
+                 <Minimize size={20} />
+               </button>
             )}
           </div>
         )}

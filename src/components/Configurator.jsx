@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Share2, Clock, Trash2, ChevronDown, ChevronUp, Palette, Code2 } from 'lucide-react';
+import { Play, Share2, Clock, Trash2, ChevronDown, ChevronUp, Palette, Code2, Loader2 } from 'lucide-react';
 import { getSavedCountdowns, deleteCountdown, formatDateForDisplay } from '../utils/storage';
-import { detectThemeColors, suggestEventDate } from '../utils/ai';
+import { detectThemeColors as localDetectThemeColors, suggestEventDate as localSuggestEventDate } from '../utils/ai';
+import { useAction, useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
 import './Configurator.css';
 
 export default function Configurator({ config, setConfig, onLaunch }) {
@@ -10,8 +12,13 @@ export default function Configurator({ config, setConfig, onLaunch }) {
   const [showColors, setShowColors] = useState(false);
   const [shareToast, setShareToast] = useState(false);
   const [autoDetecting, setAutoDetecting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [suggestedDate, setSuggestedDate] = useState(null);
   const detectTimerRef = useRef(null);
+  
+  const suggestEventDateAction = useAction(api.ai.suggestEventDate);
+  const detectThemeColorsAction = useAction(api.ai.detectThemeColors);
+  const saveMutation = useMutation(api.countdowns.save);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -29,10 +36,23 @@ export default function Configurator({ config, setConfig, onLaunch }) {
       if (config.title.length < 3) return;
       setAutoDetecting(true);
       try {
-        const [colors, suggested] = await Promise.all([
-          detectThemeColors(config.title, config.context),
-          suggestEventDate(config.title)
-        ]);
+        let colors = null;
+        let suggested = null;
+        
+        if (import.meta.env.VITE_CONVEX_URL) {
+          try {
+            [colors, suggested] = await Promise.all([
+              detectThemeColorsAction({ title: config.title, context: config.context || '' }),
+              suggestEventDateAction({ title: config.title, currentDateISO: new Date().toISOString() })
+            ]);
+          } catch (e) {
+            console.error("Convex AI failed, using fallback");
+          }
+        }
+        
+        if (!colors) colors = await localDetectThemeColors(config.title, config.context);
+        if (!suggested) suggested = await localSuggestEventDate(config.title);
+
         if (colors) {
           setConfig(prev => ({ ...prev, colors: { ...prev.colors, ...colors } }));
         }
@@ -52,39 +72,71 @@ export default function Configurator({ config, setConfig, onLaunch }) {
     setConfig(prev => ({ ...prev, colors: { ...prev.colors, [key]: value } }));
   };
 
-  const getEncodedUrl = (isEmbed = false) => {
+  const saveToCloud = async () => {
+    setIsSaving(true);
+    try {
+      const id = await saveMutation({
+        title: config.title,
+        date: new Date(config.date).toISOString(), // Ensure UTC storage
+        context: config.context,
+        bgImage: config.bgImage,
+        colors: config.colors,
+      });
+      return id;
+    } catch (e) {
+      console.error("Failed to save to cloud", e);
+      return null;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const getUrlForId = (id, isEmbed = false) => {
     const url = new URL(window.location.origin);
-    const state = {
-      title: config.title,
-      date: config.date,
-      context: config.context,
-      bgImage: config.bgImage || '',
-      colors: config.colors,
-      createdAt: config.createdAt || Date.now()
-    };
-    // Basic compression/encoding
-    const b64 = btoa(JSON.stringify(state));
-    url.searchParams.set('s', b64);
+    url.searchParams.set('id', id);
     if (isEmbed) url.searchParams.set('embed', 'true');
     return url.toString();
   };
 
-  const shareUrl = () => {
-    navigator.clipboard.writeText(getEncodedUrl(false)).then(() => {
-      setShareToast('Link copied!');
+  const shareUrl = async () => {
+    const id = await saveToCloud();
+    if (!id) return;
+    
+    navigator.clipboard.writeText(getUrlForId(id, false)).then(() => {
+      setShareToast('Cloud link copied!');
       setTimeout(() => setShareToast(false), 2500);
     });
   };
 
-  const shareEmbed = () => {
-    const code = `<iframe src="${getEncodedUrl(true)}" width="100%" height="400" style="border:none; border-radius:12px; background:transparent;"></iframe>`;
+  const shareEmbed = async () => {
+    const id = await saveToCloud();
+    if (!id) return;
+
+    const code = `<iframe src="${getUrlForId(id, true)}" width="100%" height="400" style="border:none; border-radius:12px; background:transparent;"></iframe>`;
     navigator.clipboard.writeText(code).then(() => {
       setShareToast('Iframe code copied!');
       setTimeout(() => setShareToast(false), 2500);
     });
   };
 
-  const loadSaved = (item) => { setConfig({ ...item, soundEnabled: config.soundEnabled }); setShowSaved(false); };
+  const handleStart = async () => {
+    const id = await saveToCloud();
+    if (id) {
+      // Update local config with cloud ID and UTC date
+      const updatedConfig = { 
+        ...config, 
+        id, 
+        date: new Date(config.date).toISOString() 
+      };
+      onLaunch(updatedConfig);
+      // Update URL without refreshing
+      window.history.pushState({}, '', `?id=${id}`);
+    } else {
+      onLaunch(config);
+    }
+  };
+
+  const loadSaved = (item) => { setConfig(item); setShowSaved(false); };
   const removeSaved = (e, id) => { e.stopPropagation(); setSaved(deleteCountdown(id)); };
 
   return (
@@ -134,7 +186,7 @@ export default function Configurator({ config, setConfig, onLaunch }) {
         </div>
 
         <div className="field">
-          <label htmlFor="date-input">When?</label>
+          <label htmlFor="date-input">When? <span className="hint">(automatically synced to your timezone)</span></label>
           <input id="date-input" type="datetime-local" name="date" value={config.date} onChange={handleChange} />
         </div>
 
@@ -189,13 +241,14 @@ export default function Configurator({ config, setConfig, onLaunch }) {
 
       {/* Actions */}
       <div className="config-actions">
-        <button className="btn btn-accent launch-btn" onClick={onLaunch}>
-          <Play size={18} /> Start
+        <button className="btn btn-accent launch-btn" onClick={handleStart} disabled={isSaving}>
+          {isSaving ? <Loader2 size={18} className="spin" /> : <Play size={18} />}
+          <span>{isSaving ? 'Saving...' : 'Start'}</span>
         </button>
-        <button className="btn btn-ghost share-btn" onClick={shareUrl}>
+        <button className="btn btn-ghost share-btn" onClick={shareUrl} disabled={isSaving}>
           <Share2 size={16} /> Link
         </button>
-        <button className="btn btn-ghost share-btn" onClick={shareEmbed}>
+        <button className="btn btn-ghost share-btn" onClick={shareEmbed} disabled={isSaving}>
           <Code2 size={16} /> Embed
         </button>
       </div>

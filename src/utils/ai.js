@@ -1,5 +1,3 @@
-const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY || '';
-
 const FACTS = [
   "If you started walking now, you'd cover over 1,200 miles before this moment arrives.",
   "Over 4.5 million coffees will be consumed globally while you wait.",
@@ -85,72 +83,10 @@ export async function suggestEventDate(title) {
     }
   }
 
-  // AI fallback
-  if (!OPENAI_API_KEY) return null;
-
-  try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${OPENAI_API_KEY}` },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [{ role: 'user', content:
-          `User is making a countdown for "${title}". If this is a known public holiday or recurring event, reply ONLY with its next upcoming date and time in local ISO format (YYYY-MM-DDTHH:mm). If it's not a known public event, reply with "null". Today is ${new Date().toISOString()}.`
-        }],
-        max_tokens: 20,
-        temperature: 0.1,
-      }),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    const text = data.choices[0].message.content.trim();
-    if (text === 'null' || !text.includes('T')) return null;
-    return text;
-  } catch {
-    return null;
-  }
+  return null;
 }
 
-
-export async function generateAIFact(title, _theme, context, timeLeft, createdAt) {
-  if (!OPENAI_API_KEY) return getLocalFact(title, timeLeft);
-
-  try {
-    const daysLeft = timeLeft ? timeLeft.days : 0;
-    const hoursLeft = timeLeft ? timeLeft.hours : 0;
-    const daysPassed = createdAt ? Math.floor((Date.now() - createdAt) / 86400000) : 0;
-
-    let timeContext = `There are exactly ${daysLeft} days and ${hoursLeft} hours left until the event.`;
-    if (daysPassed > 0) {
-      timeContext += ` It has been ${daysPassed} days since this countdown was started.`;
-    }
-
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${OPENAI_API_KEY}` },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [{ role: 'system', content: 
-          "You are an AI that generates fascinating, cool, or shocking facts related to a countdown. You know exactly how much time is left and how much time has passed. Generate a fact about the event itself, or a fun fact about what has happened since the countdown started (e.g., how far the Earth has rotated). DO NOT use emojis. DO NOT use em dashes. DO NOT make jokes or be witty. Keep the tone informative and surprising. Do not use placeholders like 'X days'. Keep your fact under 180 characters, and DO NOT start with 'Did you know'."
-        }, { role: 'user', content:
-          `Event: "${title}". ${context ? `Context: ${context}.` : ''} ${timeContext} Generate ONE cool or shocking fact.`
-        }],
-        max_tokens: 80,
-        temperature: 0.9,
-      }),
-    });
-    if (!res.ok) throw new Error('API error');
-    const data = await res.json();
-    let text = data.choices[0].message.content.trim();
-    // Strip quotes if AI wraps it
-    if (text.startsWith('"') && text.endsWith('"')) text = text.slice(1, -1);
-    return text;
-  } catch {
-    return getLocalFact(title, timeLeft);
-  }
-}
-
-function getLocalFact(title, timeLeft) {
+export function getLocalFact(title, timeLeft) {
   let pool = [...FACTS];
   if (timeLeft && timeLeft.days < 1) pool = [...pool, ...URGENT, ...URGENT];
   pool.push(`The countdown to ${title} has the whole room buzzing.`);
@@ -158,46 +94,17 @@ function getLocalFact(title, timeLeft) {
 }
 
 /**
- * Auto-detect colors from event title
+ * Auto-detect colors from event title (local fallback only)
  */
 export async function detectThemeColors(title, context) {
   const lower = title.toLowerCase();
 
-  // Keyword matching first
+  // Keyword matching
   for (const [keyword, colors] of Object.entries(KEYWORDS_COLORS)) {
     if (lower.includes(keyword)) return colors;
   }
 
-  // GPT fallback
-  if (!OPENAI_API_KEY) return null;
-
-  try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${OPENAI_API_KEY}` },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [{ role: 'user', content:
-          `For an event called "${title}"${context ? ` (${context})` : ''}, suggest 3 hex colors that match the mood:
-1. Primary accent color (vibrant)
-2. Secondary accent color (complementary)
-3. Dark background color (very dark, near-black)
-
-Reply ONLY with JSON: {"accent":"#hex","accentSecondary":"#hex","background":"#hex"}`
-        }],
-        max_tokens: 60,
-        temperature: 0.7,
-      }),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    const text = data.choices[0].message.content.trim();
-    const json = JSON.parse(text.replace(/```json?\n?/g, '').replace(/```/g, ''));
-    if (json.accent && json.accentSecondary && json.background) return json;
-    return null;
-  } catch {
-    return null;
-  }
+  return null;
 }
 
 export function generateHypeMessage(clicks) {
