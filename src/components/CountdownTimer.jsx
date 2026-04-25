@@ -21,13 +21,15 @@ export default function CountdownTimer({ targetDate, onComplete, onTick, onTimeU
     const timer = setInterval(() => {
       const tl = calc(targetDate);
       setTimeLeft(tl);
-      if (onTimeUpdate) onTimeUpdate(tl);
+      
+      const urgency = Math.max(0, 1 - (tl.totalSeconds / 86400));
+      if (onTimeUpdate) onTimeUpdate(tl, urgency);
       
       if (prevSecRef.current !== null && prevSecRef.current !== tl.totalSeconds) {
         if (onTick) onTick();
-        if (tl.totalSeconds === 86400) triggerMilestone("24 Hours Left! 🔥");
-        if (tl.totalSeconds === 3600) triggerMilestone("1 Hour Left! ⚡");
-        if (tl.totalSeconds === 60) triggerMilestone("60 Seconds! 🚀");
+        if (tl.totalSeconds === 86400) triggerMilestone("24 Hours Left!");
+        if (tl.totalSeconds === 3600) triggerMilestone("1 Hour Left!");
+        if (tl.totalSeconds === 60) triggerMilestone("60 Seconds!");
       }
       prevSecRef.current = tl.totalSeconds;
       
@@ -48,7 +50,7 @@ export default function CountdownTimer({ targetDate, onComplete, onTick, onTimeU
       <span className="sep" aria-hidden="true">:</span>
       <Digit value={pad(timeLeft.seconds)} label="Sec" />
       
-      {milestone && <div className="milestone-toast">🎉 {milestone}</div>}
+      {milestone && <div className="milestone-toast">{milestone}</div>}
     </div>
   );
 }

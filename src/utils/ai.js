@@ -7,21 +7,21 @@ const FACTS = [
   "The International Space Station will orbit Earth about 96 times before this moment.",
   "Approximately 350,000 babies will be born worldwide before this countdown completes.",
   "Your heart will beat roughly 400,000 times between now and the big moment.",
-  "Light from the Sun takes 8 minutes to reach Earth — your wait is a bit longer.",
+  "Light from the Sun takes 8 minutes to reach Earth. Your wait is a bit longer.",
   "NASA's Voyager 1 will travel another 38,000 miles in just one day of your wait.",
   "A hummingbird's wings will beat about 4 billion times before this countdown ends.",
-  "The moon moves about 1.5 inches farther from Earth each year. Patience, right?",
-  "Every 60 seconds in Africa, a minute passes. And one less minute on your countdown.",
+  "The moon moves about 1.5 inches farther from Earth each year.",
+  "Water covers about 71 percent of the Earth surface.",
   "The Eiffel Tower grows about 6 inches every summer due to heat expansion.",
-  "Honey never spoils — and your countdown won't last nearly as long.",
-  "A bolt of lightning is 5x hotter than the surface of the sun. That's how hot this event is.",
-  "Bananas are slightly radioactive. This fact is unrelated but now you know.",
+  "Honey never spoils, so your countdown will definitely end first.",
+  "A bolt of lightning is 5 times hotter than the surface of the sun.",
+  "A single strand of spider silk is stronger than steel of the same thickness.",
   "The shortest war in history lasted 38 minutes. This countdown is slightly longer.",
 ];
 
 const URGENT = [
   "The finish line is in sight. Almost there.",
-  "Final stretch — this is where it gets good.",
+  "Final stretch, this is where it gets good.",
   "Hours away. The anticipation is electric.",
 ];
 
@@ -112,20 +112,28 @@ export async function suggestEventDate(title) {
 }
 
 
-export async function generateAIFact(title, _theme, context, timeLeft) {
+export async function generateAIFact(title, _theme, context, timeLeft, createdAt) {
   if (!OPENAI_API_KEY) return getLocalFact(title, timeLeft);
 
   try {
-    const urgency = timeLeft && timeLeft.days < 1 ? "Less than a day remains!" :
-                    timeLeft && timeLeft.days < 3 ? "Only a few days left." : "";
+    const daysLeft = timeLeft ? timeLeft.days : 0;
+    const hoursLeft = timeLeft ? timeLeft.hours : 0;
+    const daysPassed = createdAt ? Math.floor((Date.now() - createdAt) / 86400000) : 0;
+
+    let timeContext = `There are exactly ${daysLeft} days and ${hoursLeft} hours left until the event.`;
+    if (daysPassed > 0) {
+      timeContext += ` It has been ${daysPassed} days since this countdown was started.`;
+    }
 
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${OPENAI_API_KEY}` },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
-        messages: [{ role: 'user', content:
-          `Generate ONE short, interesting fact or message (max 2 sentences) for a countdown to "${title}". ${context ? `Context: ${context}.` : ''} ${urgency} Be witty and surprising. Include one emoji. Don't say "Did you know". Keep under 180 chars.`
+        messages: [{ role: 'system', content: 
+          "You are an AI that generates fascinating, cool, or shocking facts related to a countdown. You know exactly how much time is left and how much time has passed. Generate a fact about the event itself, or a fun fact about what has happened since the countdown started (e.g., how far the Earth has rotated). DO NOT use emojis. DO NOT use em dashes. DO NOT make jokes or be witty. Keep the tone informative and surprising. Do not use placeholders like 'X days'. Keep your fact under 180 characters, and DO NOT start with 'Did you know'."
+        }, { role: 'user', content:
+          `Event: "${title}". ${context ? `Context: ${context}.` : ''} ${timeContext} Generate ONE cool or shocking fact.`
         }],
         max_tokens: 80,
         temperature: 0.9,
@@ -133,7 +141,10 @@ export async function generateAIFact(title, _theme, context, timeLeft) {
     });
     if (!res.ok) throw new Error('API error');
     const data = await res.json();
-    return data.choices[0].message.content.trim();
+    let text = data.choices[0].message.content.trim();
+    // Strip quotes if AI wraps it
+    if (text.startsWith('"') && text.endsWith('"')) text = text.slice(1, -1);
+    return text;
   } catch {
     return getLocalFact(title, timeLeft);
   }
@@ -142,7 +153,7 @@ export async function generateAIFact(title, _theme, context, timeLeft) {
 function getLocalFact(title, timeLeft) {
   let pool = [...FACTS];
   if (timeLeft && timeLeft.days < 1) pool = [...pool, ...URGENT, ...URGENT];
-  pool.push(`The countdown to ${title} has the whole room buzzing. ⚡`);
+  pool.push(`The countdown to ${title} has the whole room buzzing.`);
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
@@ -190,10 +201,10 @@ Reply ONLY with JSON: {"accent":"#hex","accentSecondary":"#hex","background":"#h
 }
 
 export function generateHypeMessage(clicks) {
-  if (clicks >= 50) return "LEGENDARY! 🔥🔥🔥";
-  if (clicks >= 30) return "UNSTOPPABLE! 💥";
-  if (clicks >= 20) return "ON FIRE! ⚡";
-  if (clicks >= 10) return "Keep going! 🚀";
-  if (clicks >= 5) return "Hype rising! 🚂";
-  return "Let's go! 🎉";
+  if (clicks >= 50) return "LEGENDARY!";
+  if (clicks >= 30) return "UNSTOPPABLE!";
+  if (clicks >= 20) return "ON FIRE!";
+  if (clicks >= 10) return "Keep going!";
+  if (clicks >= 5) return "Hype rising!";
+  return "Let's go!";
 }

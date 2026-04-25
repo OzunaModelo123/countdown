@@ -59,7 +59,8 @@ export default function Configurator({ config, setConfig, onLaunch }) {
       date: config.date,
       context: config.context,
       bgImage: config.bgImage || '',
-      colors: config.colors
+      colors: config.colors,
+      createdAt: config.createdAt || Date.now()
     };
     // Basic compression/encoding
     const b64 = btoa(JSON.stringify(state));
@@ -143,10 +144,16 @@ export default function Configurator({ config, setConfig, onLaunch }) {
             placeholder="e.g., We're celebrating our 5th anniversary as a team..." rows={2} />
         </div>
 
+        <div className="field">
+          <label htmlFor="bg-image-input">Background Image URL <span className="hint">(optional)</span></label>
+          <input id="bg-image-input" type="text" name="bgImage" value={config.bgImage || ''} onChange={handleChange}
+            placeholder="e.g., https://images.unsplash.com/..." autoComplete="off" />
+        </div>
+
         {/* Color Customization */}
         <button className="color-toggle" onClick={() => setShowColors(!showColors)}>
           <Palette size={14} />
-          <span>Customize colors</span>
+          <span>Theme Colors</span>
           {showColors ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>
 
@@ -175,11 +182,6 @@ export default function Configurator({ config, setConfig, onLaunch }) {
                 <input type="text" value={config.colors.background} onChange={(e) => setColor('background', e.target.value)}
                   className="color-hex" spellCheck="false" />
               </div>
-            </div>
-            <div className="field" style={{ marginTop: 12, width: '100%' }}>
-              <label htmlFor="bg-image-input">Custom Background Image URL</label>
-              <input id="bg-image-input" type="text" name="bgImage" value={config.bgImage || ''} onChange={handleChange}
-                placeholder="https://images.unsplash.com/..." autoComplete="off" />
             </div>
           </div>
         )}

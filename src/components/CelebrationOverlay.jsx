@@ -30,8 +30,8 @@ export default function CelebrationOverlay({ accent, title, onDismiss }) {
         <div className="celeb-icon"><PartyPopper size={40} /></div>
         <h2 className="celeb-heading">It's Time!</h2>
         <p className="celeb-event">{title}</p>
-        <p className="celeb-sub">The moment has arrived 🎉</p>
-        <button className="btn btn-accent celeb-dismiss" onClick={onDismiss}>Amazing! ✨</button>
+        <p className="celeb-sub">The moment has arrived</p>
+        <button className="btn btn-accent celeb-dismiss" onClick={onDismiss}>Amazing!</button>
       </div>
     </div>
   );

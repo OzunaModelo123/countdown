@@ -43,6 +43,7 @@ function App() {
       id: params.get('id') || `cd_${Date.now()}`,
       title: params.get('title') || 'Next Big Event',
       date: params.get('date') || localISOTime,
+      createdAt: params.get('createdAt') ? parseInt(params.get('createdAt')) : Date.now(),
       context: params.get('context') || '',
       bgImage: params.get('bgImage') || '',
       colors: {
@@ -124,7 +125,12 @@ function App() {
     if (config.soundEnabled) playTick();
   }, [config.soundEnabled]);
 
-  const handleTimeUpdate = useCallback((tl) => setTimeLeft(tl), []);
+  const handleTimeUpdate = useCallback((tl, urgency) => {
+    setTimeLeft(tl);
+    if (urgency !== undefined) {
+      document.documentElement.style.setProperty('--urgency', urgency);
+    }
+  }, []);
 
   return (
     <>

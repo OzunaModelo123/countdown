@@ -47,9 +47,9 @@ export default function Particles({ accent, secondary }) {
         this.color = Math.random() > 0.5 ? accent : secondary;
       }
 
-      update() {
-        this.x += this.vx;
-        this.y += this.vy;
+      update(speedMultiplier = 1) {
+        this.x += this.vx * speedMultiplier;
+        this.y += this.vy * speedMultiplier;
 
         if (this.x < 0 || this.x > canvas.width) this.vx = -this.vx;
         if (this.y < 0 || this.y > canvas.height) this.vy = -this.vy;
@@ -91,8 +91,12 @@ export default function Particles({ accent, secondary }) {
     const animate = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
+      const rootStyle = getComputedStyle(document.documentElement);
+      const urgency = parseFloat(rootStyle.getPropertyValue('--urgency')) || 0;
+      const speedMultiplier = 1 + (urgency * 4); // Up to 5x faster!
+
       for (let i = 0; i < particles.length; i++) {
-        particles[i].update();
+        particles[i].update(speedMultiplier);
         particles[i].draw();
         
         for (let j = i; j < particles.length; j++) {

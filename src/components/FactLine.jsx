@@ -21,7 +21,7 @@ export default function FactLine({ config, timeLeft }) {
   const loadFact = async (fade = true) => {
     if (fade) { setIsFading(true); await new Promise(r => setTimeout(r, 350)); }
     setIsLoading(true);
-    const fact = await generateAIFact(config.title, 'minimal', config.context, timeLeft);
+    const fact = await generateAIFact(config.title, 'minimal', config.context, timeLeft, config.createdAt);
     setIsLoading(false);
     if (fade) setIsFading(false);
     typeText(fact);

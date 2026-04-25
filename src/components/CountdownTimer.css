@@ -26,6 +26,7 @@
 .digit-top span, .digit-bot span, .flip-top span, .flip-bot span {
   font-family: var(--font-display); font-size: clamp(2.2rem, 5.5vw, 4.5rem);
   font-weight: 700; color: var(--text-primary); line-height: 1;
+  text-shadow: 0 0 calc(var(--urgency) * 20px) var(--accent-glow-strong);
 }
 .digit-line {
   position: absolute; top: 50%; left: 0; right: 0; height: 1px;
@@ -61,7 +62,8 @@
 .sep {
   font-family: var(--font-display); font-size: clamp(1.8rem, 3.5vw, 3.5rem);
   color: var(--accent); opacity: 0.3; margin-top: clamp(12px, 3vw, 28px);
-  animation: pulse 2s infinite; user-select: none;
+  text-shadow: 0 0 calc(var(--urgency) * 15px) var(--accent);
+  animation: pulse calc(2s - (var(--urgency) * 1.5s)) infinite; user-select: none;
 }
 @keyframes pulse { 0%, 100% { opacity: 0.15; } 50% { opacity: 0.5; } }
 
