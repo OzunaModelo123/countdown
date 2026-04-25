@@ -5,7 +5,7 @@ import FactLine from './components/FactLine';
 import HypeButton from './components/HypeButton';
 import Particles from './components/Particles';
 import CelebrationOverlay from './components/CelebrationOverlay';
-import { Pencil, Maximize, Minimize, Loader2 } from 'lucide-react';
+import { Pencil, Maximize, Minimize, Loader2, X } from 'lucide-react';
 import { saveCountdown } from './utils/storage';
 import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
@@ -14,6 +14,8 @@ import './index.css';
 function App() {
   const params = new URLSearchParams(window.location.search);
   const cloudId = params.get('id');
+  const isEmbed = params.get('embed') === 'true';
+  const isDisplayMode = params.get('mode') === 'display';
   
   // Fetch from cloud if ID exists
   const cloudData = useQuery(api.countdowns.get, cloudId ? { id: cloudId } : "skip");
@@ -26,16 +28,14 @@ function App() {
         const decoded = JSON.parse(atob(compressedState));
         return {
           ...decoded,
-          isKiosk: params.get('mode') === 'kiosk' || params.get('embed') === 'true',
-          isEmbed: params.get('embed') === 'true',
+          isKiosk: isDisplayMode || isEmbed,
+          isEmbed: isEmbed,
         };
       } catch (e) {
         console.error("Failed to parse state", e);
       }
     }
 
-    const mode = params.get('mode');
-    const isEmbed = params.get('embed') === 'true';
     const nextWeek = new Date();
     nextWeek.setDate(nextWeek.getDate() + 7);
     nextWeek.setHours(12, 0, 0, 0);
@@ -54,7 +54,7 @@ function App() {
         accentSecondary: params.get('accent2') || '#06b6d4',
         background: params.get('bg') || '#06060f',
       },
-      isKiosk: mode === 'kiosk' || isEmbed,
+      isKiosk: isDisplayMode || isEmbed,
       isEmbed: isEmbed,
     };
   });
@@ -66,12 +66,12 @@ function App() {
         ...prev,
         ...cloudData,
         id: cloudId,
-        isKiosk: params.get('mode') === 'kiosk' || params.get('embed') === 'true' || prev.isKiosk,
-        isEmbed: params.get('embed') === 'true' || prev.isEmbed,
+        isKiosk: isDisplayMode || isEmbed || prev.isKiosk,
+        isEmbed: isEmbed || prev.isEmbed,
       }));
       setIsLaunched(true);
     }
-  }, [cloudData, cloudId]);
+  }, [cloudData, cloudId, isDisplayMode, isEmbed]);
 
   const [isLaunched, setIsLaunched] = useState(config.isKiosk);
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -86,7 +86,6 @@ function App() {
     root.style.setProperty('--accent-secondary', config.colors.accentSecondary);
     root.style.setProperty('--bg-deep', config.colors.background);
 
-    // Derive glow from accent
     const hex = config.colors.accent;
     root.style.setProperty('--accent-glow', hex + '59');
     root.style.setProperty('--accent-glow-strong', hex + '8c');
@@ -112,9 +111,9 @@ function App() {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  // Keyboard shortcuts (only in countdown view)
+  // Keyboard shortcuts
   useEffect(() => {
-    if (!isLaunched) return;
+    if (!isLaunched || isDisplayMode) return;
     const handleKey = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       if (e.key === 'e' || e.key === 'E') handleEdit();
@@ -122,14 +121,13 @@ function App() {
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [isLaunched, toggleFullscreen]);
+  }, [isLaunched, isDisplayMode, toggleFullscreen]);
 
   const handleLaunch = useCallback((newConfig) => {
     const finalConfig = newConfig || config;
     saveCountdown(finalConfig);
     setIsTransitioning(true);
     
-    // Request notification permissions
     if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
       Notification.requestPermission();
     }
@@ -148,7 +146,6 @@ function App() {
 
   const handleComplete = useCallback(() => {
     setIsComplete(true);
-    // Fire Web Push Notification
     if ('Notification' in window && Notification.permission === 'granted') {
       new Notification('Countdown Complete!', {
         body: `${config.title} is finally here!`,
@@ -175,7 +172,7 @@ function App() {
 
   return (
     <>
-      <div className="app-shell">
+      <div className={`app-shell ${isDisplayMode ? 'mode-display' : ''} ${isFullscreen ? 'is-fullscreen' : ''}`}>
         {!isLaunched ? (
           <div className={`view-frame ${isTransitioning ? 'exit' : ''}`} key="setup">
             <div className="setup-header">
@@ -201,29 +198,36 @@ function App() {
                 onTimeUpdate={handleTimeUpdate}
               />
 
-              {!config.isEmbed && <FactLine config={config} timeLeft={timeLeft} />}
-              {!config.isEmbed && <HypeButton accent={config.colors.accent} />}
+              {!isDisplayMode && !isEmbed && (
+                <>
+                  <FactLine title={config.title} context={config.context} colors={config.colors} />
+                  <HypeButton accent={config.colors.accent} />
+                </>
+              )}
             </div>
 
-            {/* Bottom controls — clearly separated from content */}
-            {!config.isKiosk && !isFullscreen && (
-              <div className="bottom-controls">
-                <button className="ctrl-btn" onClick={handleEdit}>
-                  <Pencil size={14} />
-                  <span className="ctrl-label">Edit</span>
-                </button>
-                <button className={`ctrl-btn ${isFullscreen ? 'active' : ''}`} onClick={toggleFullscreen}>
-                  {isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />}
-                  <span className="ctrl-label">{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</span>
-                </button>
-              </div>
-            )}
-            
-            {/* Provide a hidden exit button that appears when hovering top right in fullscreen */}
-            {!config.isKiosk && isFullscreen && (
-               <button className="exit-fullscreen-btn" onClick={toggleFullscreen} aria-label="Exit Fullscreen">
-                 <Minimize size={20} />
-               </button>
+            {/* Controls */}
+            {isLaunched && !isDisplayMode && (
+              <>
+                {!isFullscreen && !isEmbed && (
+                  <div className="bottom-controls">
+                    <button className="ctrl-btn" onClick={handleEdit}>
+                      <Pencil size={14} />
+                      <span className="ctrl-label">Edit</span>
+                    </button>
+                    <button className="ctrl-btn" onClick={toggleFullscreen}>
+                      <Maximize size={14} />
+                      <span className="ctrl-label">Fullscreen</span>
+                    </button>
+                  </div>
+                )}
+                
+                {isFullscreen && (
+                  <button className="exit-fullscreen-btn" onClick={toggleFullscreen} title="Exit Fullscreen">
+                    <Minimize size={20} />
+                  </button>
+                )}
+              </>
             )}
           </div>
         )}
@@ -237,6 +241,7 @@ function App() {
       ) : (
         <Particles accent={config.colors.accent} secondary={config.colors.accentSecondary} />
       )}
+      
       {isComplete && (
         <CelebrationOverlay
           accent={config.colors.accent}

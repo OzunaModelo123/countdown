@@ -9,14 +9,33 @@
   animation: enter 0.5s var(--ease-out) both;
 }
 
+.config-top-bar {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
 .saved-toggle {
   display: flex; align-items: center; gap: 8px;
   padding: 10px 14px; border-radius: var(--radius-md);
   background: var(--surface); border: 1px solid var(--glass-border);
   color: var(--text-muted); font-size: 0.8rem; font-weight: 500;
-  transition: all 0.2s; width: 100%;
+  transition: all 0.2s; flex: 1;
 }
-.saved-toggle:hover { color: var(--text-primary); border-color: rgba(255,255,255,0.1); }
+
+.guide-trigger-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; border-radius: var(--radius-md);
+  background: var(--surface); border: 1px solid var(--glass-border);
+  color: var(--accent); font-size: 0.8rem; font-weight: 600;
+  transition: all 0.2s; flex: 1;
+}
+
+.saved-toggle:hover, .guide-trigger-btn:hover { 
+  color: var(--text-primary); 
+  border-color: rgba(255,255,255,0.1); 
+  background: var(--surface-hover);
+}
 
 .saved-list {
   display: flex; flex-direction: column; gap: 2px;

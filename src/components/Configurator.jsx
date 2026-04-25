@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Share2, Clock, Trash2, ChevronDown, ChevronUp, Palette, Code2, Loader2 } from 'lucide-react';
+import { Play, Share2, Clock, Trash2, ChevronDown, ChevronUp, Palette, Loader2, Monitor } from 'lucide-react';
 import { getSavedCountdowns, deleteCountdown, formatDateForDisplay } from '../utils/storage';
 import { detectThemeColors as localDetectThemeColors, suggestEventDate as localSuggestEventDate } from '../utils/ai';
 import { useAction, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import DisplayGuide from './DisplayGuide';
 import './Configurator.css';
 
 export default function Configurator({ config, setConfig, onLaunch }) {
@@ -13,6 +14,7 @@ export default function Configurator({ config, setConfig, onLaunch }) {
   const [shareToast, setShareToast] = useState(false);
   const [autoDetecting, setAutoDetecting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
   const [suggestedDate, setSuggestedDate] = useState(null);
   const detectTimerRef = useRef(null);
   
@@ -98,6 +100,18 @@ export default function Configurator({ config, setConfig, onLaunch }) {
     return url.toString();
   };
 
+  const handleDisplayGuide = async () => {
+    if (!config.id || config.id.startsWith('cd_')) {
+      const id = await saveToCloud();
+      if (id) {
+        setConfig(prev => ({ ...prev, id }));
+        setShowGuide(true);
+      }
+    } else {
+      setShowGuide(true);
+    }
+  };
+
   const shareUrl = async () => {
     const id = await saveToCloud();
     if (!id) return;
@@ -108,28 +122,11 @@ export default function Configurator({ config, setConfig, onLaunch }) {
     });
   };
 
-  const shareEmbed = async () => {
-    const id = await saveToCloud();
-    if (!id) return;
-
-    const code = `<iframe src="${getUrlForId(id, true)}" width="100%" height="400" style="border:none; border-radius:12px; background:transparent;"></iframe>`;
-    navigator.clipboard.writeText(code).then(() => {
-      setShareToast('Iframe code copied!');
-      setTimeout(() => setShareToast(false), 2500);
-    });
-  };
-
   const handleStart = async () => {
     const id = await saveToCloud();
     if (id) {
-      // Update local config with cloud ID and UTC date
-      const updatedConfig = { 
-        ...config, 
-        id, 
-        date: new Date(config.date).toISOString() 
-      };
+      const updatedConfig = { ...config, id, date: new Date(config.date).toISOString() };
       onLaunch(updatedConfig);
-      // Update URL without refreshing
       window.history.pushState({}, '', `?id=${id}`);
     } else {
       onLaunch(config);
@@ -141,14 +138,21 @@ export default function Configurator({ config, setConfig, onLaunch }) {
 
   return (
     <div className="configurator glass">
-      {/* Saved */}
-      {saved.length > 0 && (
-        <button className="saved-toggle" onClick={() => { setSaved(getSavedCountdowns()); setShowSaved(!showSaved); }}>
-          <Clock size={14} />
-          <span>{saved.length} saved</span>
-          {showSaved ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+      {/* Saved & Guide */}
+      <div className="config-top-bar">
+        {saved.length > 0 && (
+          <button className="saved-toggle" onClick={() => { setSaved(getSavedCountdowns()); setShowSaved(!showSaved); }}>
+            <Clock size={14} />
+            <span>{saved.length} saved</span>
+            {showSaved ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+        )}
+        <button className="guide-trigger-btn" onClick={handleDisplayGuide}>
+          <Monitor size={14} />
+          <span>Display & Embed</span>
         </button>
-      )}
+      </div>
+
       {showSaved && (
         <div className="saved-list">
           {saved.map(item => (
@@ -191,18 +195,17 @@ export default function Configurator({ config, setConfig, onLaunch }) {
         </div>
 
         <div className="field">
-          <label htmlFor="context-input">Extra context <span className="hint">(optional — makes facts more relevant)</span></label>
+          <label htmlFor="context-input">Extra context <span className="hint">(optional)</span></label>
           <textarea id="context-input" name="context" value={config.context} onChange={handleChange}
-            placeholder="e.g., We're celebrating our 5th anniversary as a team..." rows={2} />
+            placeholder="e.g., Anniversary event..." rows={2} />
         </div>
 
         <div className="field">
-          <label htmlFor="bg-image-input">Background Image URL <span className="hint">(optional)</span></label>
+          <label htmlFor="bg-image-input">Background Image URL</label>
           <input id="bg-image-input" type="text" name="bgImage" value={config.bgImage || ''} onChange={handleChange}
-            placeholder="e.g., https://images.unsplash.com/..." autoComplete="off" />
+            placeholder="https://..." autoComplete="off" />
         </div>
 
-        {/* Color Customization */}
         <button className="color-toggle" onClick={() => setShowColors(!showColors)}>
           <Palette size={14} />
           <span>Theme Colors</span>
@@ -239,7 +242,6 @@ export default function Configurator({ config, setConfig, onLaunch }) {
         )}
       </div>
 
-      {/* Actions */}
       <div className="config-actions">
         <button className="btn btn-accent launch-btn" onClick={handleStart} disabled={isSaving}>
           {isSaving ? <Loader2 size={18} className="spin" /> : <Play size={18} />}
@@ -248,12 +250,15 @@ export default function Configurator({ config, setConfig, onLaunch }) {
         <button className="btn btn-ghost share-btn" onClick={shareUrl} disabled={isSaving}>
           <Share2 size={16} /> Link
         </button>
-        <button className="btn btn-ghost share-btn" onClick={shareEmbed} disabled={isSaving}>
-          <Code2 size={16} /> Embed
-        </button>
       </div>
 
       {shareToast && <div className="toast">✓ {shareToast}</div>}
+
+      <DisplayGuide 
+        isOpen={showGuide} 
+        onClose={() => setShowGuide(false)} 
+        cloudUrl={getUrlForId(config.id)} 
+      />
     </div>
   );
 }
