@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Share2, Clock, Trash2, ChevronDown, ChevronUp, Palette, Wand2 } from 'lucide-react';
 import { getSavedCountdowns, deleteCountdown, formatDateForDisplay } from '../utils/storage';
-import { detectThemeColors } from '../utils/ai';
+import { detectThemeColors, suggestEventDate } from '../utils/ai';
 import './Configurator.css';
 
 export default function Configurator({ config, setConfig, onLaunch }) {
@@ -10,6 +10,7 @@ export default function Configurator({ config, setConfig, onLaunch }) {
   const [showColors, setShowColors] = useState(false);
   const [shareToast, setShareToast] = useState(false);
   const [autoDetecting, setAutoDetecting] = useState(false);
+  const [suggestedDate, setSuggestedDate] = useState(null);
   const detectTimerRef = useRef(null);
 
   const handleChange = (e) => {
@@ -28,9 +29,17 @@ export default function Configurator({ config, setConfig, onLaunch }) {
       if (config.title.length < 3) return;
       setAutoDetecting(true);
       try {
-        const colors = await detectThemeColors(config.title, config.context);
+        const [colors, suggested] = await Promise.all([
+          detectThemeColors(config.title, config.context),
+          suggestEventDate(config.title)
+        ]);
         if (colors) {
           setConfig(prev => ({ ...prev, colors: { ...prev.colors, ...colors } }));
+        }
+        if (suggested && suggested !== config.date) {
+          setSuggestedDate(suggested);
+        } else {
+          setSuggestedDate(null);
         }
       } catch (e) { /* silent */ }
       setAutoDetecting(false);
@@ -93,7 +102,18 @@ export default function Configurator({ config, setConfig, onLaunch }) {
           <label htmlFor="title-input">What are you counting down to?</label>
           <input id="title-input" type="text" name="title" value={config.title} onChange={handleChange}
             placeholder="e.g., Product Launch, Christmas, Birthday Party" autoComplete="off" />
-          {autoDetecting && <span className="detect-hint">✨ Matching colors...</span>}
+          {autoDetecting && <span className="detect-hint">✨ Matching...</span>}
+          {suggestedDate && !autoDetecting && (
+            <button 
+              className="suggestion-chip" 
+              onClick={() => {
+                setConfig(prev => ({ ...prev, date: suggestedDate }));
+                setSuggestedDate(null);
+              }}
+            >
+              ✨ Did you mean {new Date(suggestedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}? <span className="apply-txt">Apply</span>
+            </button>
+          )}
         </div>
 
         <div className="field">

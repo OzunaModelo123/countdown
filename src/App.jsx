@@ -94,10 +94,7 @@ function App() {
 
   return (
     <>
-      <div className="ambient-bg">
-        <div className="ambient-orb" />
-        <div className="ambient-orb" />
-      </div>
+
 
       <div className="app-shell">
         {!isLaunched ? (
@@ -148,7 +145,7 @@ function App() {
         )}
       </div>
 
-      {isLaunched && <Particles accent={config.colors.accent} secondary={config.colors.accentSecondary} />}
+      <Particles accent={config.colors.accent} secondary={config.colors.accentSecondary} />
       {isComplete && (
         <CelebrationOverlay
           accent={config.colors.accent}

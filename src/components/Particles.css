@@ -1,22 +1,10 @@
-.ptcl-wrap { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
-.ptcl {
-  position: absolute; bottom: -20px; border-radius: 50%;
-  will-change: transform, opacity;
-}
-.ptcl.dust { filter: blur(2px); animation: up linear infinite; }
-.ptcl.orb { filter: blur(3px); animation: shimmer linear infinite; }
-
-@keyframes up {
-  0% { transform: translateY(0) translateX(0); opacity: 0; }
-  5% { opacity: var(--particle-opacity, 0.15); }
-  50% { transform: translateY(-50vh) translateX(15px); }
-  95% { opacity: var(--particle-opacity, 0.15); }
-  100% { transform: translateY(-110vh) translateX(-10px); opacity: 0; }
-}
-@keyframes shimmer {
-  0% { transform: translateY(0) scale(1); opacity: 0; }
-  25% { opacity: 0.25; transform: translateY(-30vh) scale(1.5); }
-  50% { opacity: 0.08; transform: translateY(-60vh) scale(0.8); }
-  75% { opacity: 0.25; transform: translateY(-80vh) scale(1.2); }
-  100% { transform: translateY(-110vh) scale(1); opacity: 0; }
+.particles-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none; /* Let clicks pass through to UI */
+  z-index: 0;
+  opacity: 0.8;
 }

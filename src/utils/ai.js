@@ -49,6 +49,69 @@ const KEYWORDS_COLORS = {
   retirement: { accent: '#c9b037', accentSecondary: '#4a7c59', background: '#0a0a08' },
 };
 
+const HOLIDAY_DATES = {
+  "christmas": { month: 11, day: 25 },
+  "xmas": { month: 11, day: 25 },
+  "halloween": { month: 9, day: 31 },
+  "valentine": { month: 1, day: 14 },
+  "st patrick": { month: 2, day: 17 },
+  "saint patrick": { month: 2, day: 17 },
+  "new year": { month: 0, day: 1 },
+  "nye": { month: 0, day: 1 },
+  "independence day": { month: 6, day: 4 },
+  "july 4": { month: 6, day: 4 },
+  "earth day": { month: 3, day: 22 },
+  "star wars day": { month: 4, day: 4 },
+};
+
+export async function suggestEventDate(title) {
+  const lower = title.toLowerCase();
+  
+  // Local fallback check
+  for (const [keyword, dateObj] of Object.entries(HOLIDAY_DATES)) {
+    if (lower.includes(keyword)) {
+      const now = new Date();
+      let year = now.getFullYear();
+      let suggested = new Date(year, dateObj.month, dateObj.day, 0, 0, 0);
+      
+      // If it already passed this year, suggest next year
+      if (suggested.getTime() < now.getTime()) {
+        suggested.setFullYear(year + 1);
+      }
+      
+      // Adjust timezone offset to get local ISO string format
+      const tzoffset = suggested.getTimezoneOffset() * 60000;
+      return new Date(suggested.getTime() - tzoffset).toISOString().slice(0, 16);
+    }
+  }
+
+  // AI fallback
+  if (!OPENAI_API_KEY) return null;
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${OPENAI_API_KEY}` },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'user', content:
+          `User is making a countdown for "${title}". If this is a known public holiday or recurring event, reply ONLY with its next upcoming date and time in local ISO format (YYYY-MM-DDTHH:mm). If it's not a known public event, reply with "null". Today is ${new Date().toISOString()}.`
+        }],
+        max_tokens: 20,
+        temperature: 0.1,
+      }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const text = data.choices[0].message.content.trim();
+    if (text === 'null' || !text.includes('T')) return null;
+    return text;
+  } catch {
+    return null;
+  }
+}
+
+
 export async function generateAIFact(title, _theme, context, timeLeft) {
   if (!OPENAI_API_KEY) return getLocalFact(title, timeLeft);
 
