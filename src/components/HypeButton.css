@@ -1,0 +1,22 @@
+.hype-wrap { margin-top: 28px; display: flex; flex-direction: column; align-items: center; gap: 10px; z-index: 10; position: relative; }
+.hype-btn {
+  position: relative; background: var(--accent); color: #fff; border-radius: var(--radius-pill);
+  padding: 14px 36px; font-size: 1.2rem; font-weight: 800; display: flex; align-items: center; gap: 8px;
+  box-shadow: 0 6px 24px var(--accent-glow); transition: transform 0.15s, filter 0.15s, box-shadow 0.3s;
+  letter-spacing: 0.04em;
+}
+.hype-btn:hover { transform: translateY(-3px) scale(1.03); filter: brightness(1.12); box-shadow: 0 10px 32px var(--accent-glow-strong); }
+.hype-btn:active { transform: translateY(1px) scale(0.97); }
+.hype-btn.i-mid { box-shadow: 0 6px 24px var(--accent-glow), 0 0 50px var(--accent-glow); }
+.hype-btn.i-high { box-shadow: 0 6px 24px var(--accent-glow-strong), 0 0 70px var(--accent-glow); animation: gpulse 0.5s infinite alternate; }
+.hype-btn.i-max { box-shadow: 0 6px 24px var(--accent-glow-strong), 0 0 100px var(--accent-glow-strong); animation: gpulse 0.3s infinite alternate; }
+@keyframes gpulse { from { filter: brightness(1); } to { filter: brightness(1.25); } }
+.flame { animation: flicker 1.5s infinite alternate; }
+@keyframes flicker { 0% { transform: scale(1) rotate(-3deg); } 100% { transform: scale(1.15) rotate(3deg); } }
+.jiggle { animation: jig 0.2s ease-in-out !important; }
+@keyframes jig { 0% { transform: rotate(0) scale(1); } 25% { transform: rotate(-4deg) scale(1.04); } 50% { transform: rotate(4deg) scale(1.04); } 75% { transform: rotate(-2deg); } 100% { transform: rotate(0) scale(1); } }
+@keyframes shake { 0% { transform: translateX(0); } 25% { transform: translateX(-3px); } 50% { transform: translateX(3px); } 75% { transform: translateX(-2px); } 100% { transform: translateX(0); } }
+.hype-stats { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.hype-count { font-size: 1.2rem; font-weight: 800; font-family: var(--font-display); color: var(--accent); animation: pop 0.3s var(--ease-out); }
+@keyframes pop { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.hype-msg { font-size: 0.75rem; color: var(--text-secondary); font-weight: 500; animation: enter 0.3s ease; }
