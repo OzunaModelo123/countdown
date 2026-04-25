@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import confetti from 'canvas-confetti';
 import './CountdownTimer.css';
 
 export default function CountdownTimer({ targetDate, onComplete, onTick, onTimeUpdate }) {
@@ -8,13 +9,28 @@ export default function CountdownTimer({ targetDate, onComplete, onTick, onTimeU
 
   useEffect(() => { doneRef.current = false; }, [targetDate]);
 
+  const [milestone, setMilestone] = useState(null);
+
+  const triggerMilestone = (msg) => {
+    setMilestone(msg);
+    confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+    setTimeout(() => setMilestone(null), 4000);
+  };
+
   useEffect(() => {
     const timer = setInterval(() => {
       const tl = calc(targetDate);
       setTimeLeft(tl);
       if (onTimeUpdate) onTimeUpdate(tl);
-      if (prevSecRef.current !== null && prevSecRef.current !== tl.seconds && onTick) onTick();
-      prevSecRef.current = tl.seconds;
+      
+      if (prevSecRef.current !== null && prevSecRef.current !== tl.totalSeconds) {
+        if (onTick) onTick();
+        if (tl.totalSeconds === 86400) triggerMilestone("24 Hours Left! 🔥");
+        if (tl.totalSeconds === 3600) triggerMilestone("1 Hour Left! ⚡");
+        if (tl.totalSeconds === 60) triggerMilestone("60 Seconds! 🚀");
+      }
+      prevSecRef.current = tl.totalSeconds;
+      
       if (tl.isComplete && !doneRef.current) { doneRef.current = true; if (onComplete) onComplete(); }
     }, 1000);
     return () => clearInterval(timer);
@@ -31,6 +47,8 @@ export default function CountdownTimer({ targetDate, onComplete, onTick, onTimeU
       <Digit value={pad(timeLeft.minutes)} label="Min" />
       <span className="sep" aria-hidden="true">:</span>
       <Digit value={pad(timeLeft.seconds)} label="Sec" />
+      
+      {milestone && <div className="milestone-toast">🎉 {milestone}</div>}
     </div>
   );
 }
@@ -39,9 +57,10 @@ function calc(targetDate) {
   const d = +new Date(targetDate) - +new Date();
   if (d > 0) return {
     days: Math.floor(d / 86400000), hours: Math.floor((d / 3600000) % 24),
-    minutes: Math.floor((d / 60000) % 60), seconds: Math.floor((d / 1000) % 60), isComplete: false,
+    minutes: Math.floor((d / 60000) % 60), seconds: Math.floor((d / 1000) % 60), 
+    totalSeconds: Math.floor(d / 1000), isComplete: false,
   };
-  return { days: 0, hours: 0, minutes: 0, seconds: 0, isComplete: true };
+  return { days: 0, hours: 0, minutes: 0, seconds: 0, totalSeconds: 0, isComplete: true };
 }
 
 function Digit({ value, label }) {

@@ -14,7 +14,25 @@ import './index.css';
 function App() {
   const [config, setConfig] = useState(() => {
     const params = new URLSearchParams(window.location.search);
+    
+    // Check for base64 compressed state
+    const compressedState = params.get('s');
+    if (compressedState) {
+      try {
+        const decoded = JSON.parse(atob(compressedState));
+        return {
+          ...decoded,
+          isKiosk: params.get('mode') === 'kiosk' || params.get('embed') === 'true',
+          isEmbed: params.get('embed') === 'true',
+          soundEnabled: true,
+        };
+      } catch (e) {
+        console.error("Failed to parse state", e);
+      }
+    }
+
     const mode = params.get('mode');
+    const isEmbed = params.get('embed') === 'true';
     const nextWeek = new Date();
     nextWeek.setDate(nextWeek.getDate() + 7);
     nextWeek.setHours(12, 0, 0, 0);
@@ -26,12 +44,14 @@ function App() {
       title: params.get('title') || 'Next Big Event',
       date: params.get('date') || localISOTime,
       context: params.get('context') || '',
+      bgImage: params.get('bgImage') || '',
       colors: {
         accent: params.get('accent') || '#7c3aed',
         accentSecondary: params.get('accent2') || '#06b6d4',
         background: params.get('bg') || '#06060f',
       },
-      isKiosk: mode === 'kiosk',
+      isKiosk: mode === 'kiosk' || isEmbed,
+      isEmbed: isEmbed,
       soundEnabled: true,
     };
   });
@@ -73,6 +93,12 @@ function App() {
   const handleLaunch = useCallback(() => {
     saveCountdown(config);
     setIsTransitioning(true);
+    
+    // Request notification permissions
+    if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+      Notification.requestPermission();
+    }
+
     setTimeout(() => { setIsLaunched(true); setIsTransitioning(false); }, 250);
   }, [config]);
 
@@ -84,7 +110,15 @@ function App() {
   const handleComplete = useCallback(() => {
     setIsComplete(true);
     if (config.soundEnabled) playThemeComplete('minimal');
-  }, [config.soundEnabled]);
+    
+    // Fire Web Push Notification
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('Countdown Complete!', {
+        body: `${config.title} is finally here!`,
+        icon: '/favicon.ico'
+      });
+    }
+  }, [config.soundEnabled, config.title]);
 
   const handleTick = useCallback(() => {
     if (config.soundEnabled) playTick();
@@ -123,9 +157,8 @@ function App() {
                 onTimeUpdate={handleTimeUpdate}
               />
 
-              <FactLine config={config} timeLeft={timeLeft} />
-
-              <HypeButton accent={config.colors.accent} soundEnabled={config.soundEnabled} />
+              {!config.isEmbed && <FactLine config={config} timeLeft={timeLeft} />}
+              {!config.isEmbed && <HypeButton accent={config.colors.accent} soundEnabled={config.soundEnabled} />}
             </div>
 
             {/* Bottom controls — clearly separated from content */}
@@ -145,7 +178,14 @@ function App() {
         )}
       </div>
 
-      <Particles accent={config.colors.accent} secondary={config.colors.accentSecondary} />
+      {config.bgImage ? (
+        <>
+          <div className="bg-image-layer" style={{ backgroundImage: `url(${config.bgImage})` }} />
+          <div className="bg-glass-overlay" />
+        </>
+      ) : (
+        <Particles accent={config.colors.accent} secondary={config.colors.accentSecondary} />
+      )}
       {isComplete && (
         <CelebrationOverlay
           accent={config.colors.accent}

@@ -71,3 +71,28 @@
   .sep { font-size: 1.4rem; margin-top: 12px; }
   .digit-label { font-size: 0.55rem; }
 }
+
+.milestone-toast {
+  position: absolute;
+  top: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--accent);
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: var(--radius-pill);
+  font-weight: 700;
+  font-size: 1.1rem;
+  white-space: nowrap;
+  box-shadow: 0 10px 40px var(--accent-glow-strong);
+  animation: milestone-pop 4s var(--ease-out) forwards;
+  z-index: 50;
+}
+
+@keyframes milestone-pop {
+  0% { opacity: 0; transform: translate(-50%, 20px) scale(0.9); }
+  5% { opacity: 1; transform: translate(-50%, 0) scale(1.1); }
+  10% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  85% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -20px) scale(0.9); }
+}

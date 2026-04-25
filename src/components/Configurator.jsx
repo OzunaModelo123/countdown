@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Share2, Clock, Trash2, ChevronDown, ChevronUp, Palette, Wand2 } from 'lucide-react';
+import { Play, Share2, Clock, Trash2, ChevronDown, ChevronUp, Palette, Code2 } from 'lucide-react';
 import { getSavedCountdowns, deleteCountdown, formatDateForDisplay } from '../utils/storage';
 import { detectThemeColors, suggestEventDate } from '../utils/ai';
 import './Configurator.css';
@@ -52,17 +52,33 @@ export default function Configurator({ config, setConfig, onLaunch }) {
     setConfig(prev => ({ ...prev, colors: { ...prev.colors, [key]: value } }));
   };
 
-  const shareUrl = () => {
+  const getEncodedUrl = (isEmbed = false) => {
     const url = new URL(window.location.origin);
-    url.searchParams.set('mode', 'kiosk');
-    url.searchParams.set('title', config.title);
-    url.searchParams.set('date', config.date);
-    url.searchParams.set('accent', config.colors.accent);
-    url.searchParams.set('accent2', config.colors.accentSecondary);
-    url.searchParams.set('bg', config.colors.background);
-    if (config.context) url.searchParams.set('context', config.context);
-    navigator.clipboard.writeText(url.toString()).then(() => {
-      setShareToast(true);
+    const state = {
+      title: config.title,
+      date: config.date,
+      context: config.context,
+      bgImage: config.bgImage || '',
+      colors: config.colors
+    };
+    // Basic compression/encoding
+    const b64 = btoa(JSON.stringify(state));
+    url.searchParams.set('s', b64);
+    if (isEmbed) url.searchParams.set('embed', 'true');
+    return url.toString();
+  };
+
+  const shareUrl = () => {
+    navigator.clipboard.writeText(getEncodedUrl(false)).then(() => {
+      setShareToast('Link copied!');
+      setTimeout(() => setShareToast(false), 2500);
+    });
+  };
+
+  const shareEmbed = () => {
+    const code = `<iframe src="${getEncodedUrl(true)}" width="100%" height="400" style="border:none; border-radius:12px; background:transparent;"></iframe>`;
+    navigator.clipboard.writeText(code).then(() => {
+      setShareToast('Iframe code copied!');
       setTimeout(() => setShareToast(false), 2500);
     });
   };
@@ -160,6 +176,11 @@ export default function Configurator({ config, setConfig, onLaunch }) {
                   className="color-hex" spellCheck="false" />
               </div>
             </div>
+            <div className="field" style={{ marginTop: 12, width: '100%' }}>
+              <label htmlFor="bg-image-input">Custom Background Image URL</label>
+              <input id="bg-image-input" type="text" name="bgImage" value={config.bgImage || ''} onChange={handleChange}
+                placeholder="https://images.unsplash.com/..." autoComplete="off" />
+            </div>
           </div>
         )}
       </div>
@@ -167,14 +188,17 @@ export default function Configurator({ config, setConfig, onLaunch }) {
       {/* Actions */}
       <div className="config-actions">
         <button className="btn btn-accent launch-btn" onClick={onLaunch}>
-          <Play size={18} /> Start Countdown
+          <Play size={18} /> Start
         </button>
-        <button className="btn btn-ghost" onClick={shareUrl}>
-          <Share2 size={16} /> Share
+        <button className="btn btn-ghost share-btn" onClick={shareUrl}>
+          <Share2 size={16} /> Link
+        </button>
+        <button className="btn btn-ghost share-btn" onClick={shareEmbed}>
+          <Code2 size={16} /> Embed
         </button>
       </div>
 
-      {shareToast && <div className="toast">✓ Link copied!</div>}
+      {shareToast && <div className="toast">✓ {shareToast}</div>}
     </div>
   );
 }
