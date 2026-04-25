@@ -191,7 +191,6 @@ function App() {
                   hour: 'numeric', minute: '2-digit',
                 })}
               </p>
-
               <CountdownTimer
                 targetDate={config.date}
                 onComplete={handleComplete}
@@ -207,9 +206,10 @@ function App() {
             </div>
 
             {/* Controls */}
-            {isLaunched && !isDisplayMode && (
+            {isLaunched && (
               <>
-                {!isFullscreen && !isEmbed && (
+                {/* Standard controls (Hidden in display mode) */}
+                {!isDisplayMode && !isFullscreen && !isEmbed && (
                   <div className="bottom-controls">
                     <button className="ctrl-btn" onClick={handleEdit}>
                       <Pencil size={14} />
@@ -222,7 +222,14 @@ function App() {
                   </div>
                 )}
                 
-                {isFullscreen && (
+                {/* Subtle info trigger for Display Mode (only on hover) */}
+                {isDisplayMode && (
+                  <button className="display-info-trigger" onClick={() => setIsLaunched(false)} title="Show Settings">
+                    <X size={16} />
+                  </button>
+                )}
+
+                {isFullscreen && !isDisplayMode && (
                   <button className="exit-fullscreen-btn" onClick={toggleFullscreen} title="Exit Fullscreen">
                     <Minimize size={20} />
                   </button>
@@ -232,6 +239,12 @@ function App() {
           </div>
         )}
       </div>
+
+      <DisplayGuide 
+        isOpen={!isLaunched && isDisplayMode} 
+        onClose={() => setIsLaunched(true)} 
+        cloudUrl={window.location.href.replace('&mode=display', '').replace('?mode=display', '')} 
+      />
 
       {config.bgImage ? (
         <>

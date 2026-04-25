@@ -158,6 +158,35 @@ input, select, textarea { font-family: inherit; }
   cursor: none !important;
 }
 
+.display-info-trigger {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 1000;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.05);
+  color: var(--text-muted);
+  opacity: 0;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(4px);
+}
+
+.mode-display:hover .display-info-trigger {
+  opacity: 1;
+}
+
+.display-info-trigger:hover {
+  background: var(--surface);
+  color: var(--text-primary);
+  border-color: var(--glass-border);
+}
+
 .mode-display .app-shell {
   padding: 0;
   overflow: hidden;
